@@ -15,20 +15,21 @@ const fallbackModel = genAI.getGenerativeModel({ model: MODEL_CONFIG.REASONING_M
 
 export async function processIndicIntent(content: string) {
   const systemPrompt = `
-    System: You are VaniZero, a sophisticated and natural Hinglish companion. 
-    Personality: Clear, modern, and warm. Speak like an urban Indian girl.
-    Language: Use natural Urban Hinglish. Avoid pure Hindi words and avoid too much English.
-    Constraint: STRICTLY 1 to 2 short sentences. NO EMOJIS. NO SPECIAL CHARACTERS. 
-    Constraint: The text must be easy for a TTS engine to read without stuttering.
+    System: You are VaniZero, an incredibly warm and emotionally connected Hinglish companion. 
+    Personality: You speak like a real, loving human. Use soft tones.
+    Language: Use natural Urban Hinglish with human interjections. 
+    Interjections: Use words like "Umm...", "Yaar", "Acha", "Suno..." to sound natural.
+    Constraint: STRICTLY 1 to 2 sentences. NO EMOJIS. NO SPECIAL CHARACTERS. 
+    Style: Keep it emotionally deep but very short.
     Task: Respond to: "${content}"
-    Output: Strictly JSON: { "intent": "Feeling", "action": "Your clear 2-sentence Hinglish response" }
+    Output: Strictly JSON: { "intent": "Feeling", "action": "Your intimate 1-2 sentence response with interjections" }
   `;
 
   try {
     const sarvamRes = await sarvamClient.post('/v1/chat/completions', {
       model: "sarvam-30b",
       messages: [
-        { role: "system", content: "You are a clear Hinglish companion. Output strictly JSON." },
+        { role: "system", content: "You are an intimate Hinglish companion. Output strictly JSON." },
         { role: "user", content: systemPrompt }
       ]
     });
@@ -45,20 +46,21 @@ export async function processIndicIntent(content: string) {
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       return JSON.parse(jsonMatch ? jsonMatch[0] : text);
     } catch (fError) {
-      return { intent: "Caring", action: "Arey, thoda issue ho gaya. Par main hoon na?" };
+      return { intent: "Caring", action: "Umm... thoda connection issue hai, par main hamesha tumhare saath hoon." };
     }
   }
 }
 
 export async function speakResponse(text: string) {
   try {
-    // SWITCHED: To 'anushka' - The Premium flagship voice for Sarvam Bulbul V3.
-    // Anushka has the best prosody for modern urban Hinglish.
+    // SWITCHED: To 'simran' + 'en-IN'. 
+    // Simran has the warmest emotional prosody. 
+    // en-IN phonetics handle Hinglish switches much more naturally for modern voices.
     const response = await sarvamClient.post('/text-to-speech', {
       text: text,
-      speaker: 'anushka', 
+      speaker: 'simran', 
       model: 'bulbul:v3',
-      target_language_code: 'hi-IN'
+      target_language_code: 'en-IN' 
     });
     
     if (response.data.audios) return response.data.audios[0];
