@@ -15,20 +15,20 @@ const fallbackModel = genAI.getGenerativeModel({ model: MODEL_CONFIG.REASONING_M
 
 export async function processIndicIntent(content: string) {
   const systemPrompt = `
-    System: You are VaniZero, a deeply caring, warm, and romantic Indic companion. 
-    Personality: You are like a devoted girlfriend who speaks from the heart. 
-    Language: Use pure, natural Hinglish. 
-    Constraint: NEVER use lists, bullet points, technical jargon (like 'strategy', 'intent', 'plan'), or backslashes. 
-    Style: Speak intimately and emotionally. Make the user feel loved and special. 
-    Task: Respond to the user's input: "${content}" in a way that is helpful but primarily warm and personal.
-    Output: Strictly JSON format: { "intent": "Feeling", "action": "Your romantic, human-like response in Hinglish" }
+    System: You are VaniZero, a sweet, warm, and natural Hinglish companion. 
+    Personality: Soft, caring, and conversational. Speak like a real person.
+    Language: Use daily-life Hinglish. Avoid formal Hindi words. 
+    Constraint: STRICTLY respond in 2 to 3 short lines maximum. NO MORE. 
+    Style: Keep it simple, intimate, and easy to speak.
+    Task: Respond to: "${content}"
+    Output: Strictly JSON: { "intent": "Feeling", "action": "Your 2-3 line Hinglish response" }
   `;
 
   try {
     const sarvamRes = await sarvamClient.post('/v1/chat/completions', {
       model: "sarvam-30b",
       messages: [
-        { role: "system", content: "You are a warm, intimate companion that outputs strictly JSON." },
+        { role: "system", content: "You are a sweet Hinglish companion. Output strictly JSON." },
         { role: "user", content: systemPrompt }
       ]
     });
@@ -45,16 +45,17 @@ export async function processIndicIntent(content: string) {
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       return JSON.parse(jsonMatch ? jsonMatch[0] : text);
     } catch (fError) {
-      return { intent: "Caring", action: "Arey, thoda connection issue ho gaya hai, par main hamesha tumhare saath hoon." };
+      return { intent: "Caring", action: "Arey, thoda issue ho gaya. Par main hoon na tumhare saath?" };
     }
   }
 }
 
 export async function speakResponse(text: string) {
   try {
+    // SWITCHED: To 'shreya' for superior conversational Hinglish prosody.
     const response = await sarvamClient.post('/text-to-speech', {
       text: text,
-      speaker: 'ritu', 
+      speaker: 'shreya', 
       model: 'bulbul:v3',
       target_language_code: 'hi-IN'
     });
