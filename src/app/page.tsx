@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, Zap, MessageSquare, History, Sparkles, Loader2, Info, User, LogIn, Calendar, Share2, Globe, CheckCircle2 } from 'lucide-react';
+import { Mic, Zap, MessageSquare, History, Sparkles, Loader2, Info, User, LogIn, Calendar, Share2, Globe, CheckCircle2, Volume2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Home() {
@@ -13,31 +13,83 @@ export default function Home() {
   const [lang, setLang] = useState<'hi-IN' | 'en-US'>('hi-IN');
   
   const recognitionRef = useRef<any>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const analyzerRef = useRef<AnalyserNode | null>(null);
+  const animationRef = useRef<number | null>(null);
 
-  // Internationalization Logic
-  const content = {
-    'hi-IN': {
-      title: 'VaniZero',
-      subtitle: 'Zero-Prompt AI assistant for Bharat.',
-      tap: 'Tap to converse',
-      listening: 'Listening natively...',
-      thinking: 'Grounded Reasoning...',
-      intent: 'Intent Intelligence',
-      grounded: 'Grounded Result',
-      action: 'Automated Action Plan',
-      footer: ['Marketing', 'Operations', 'History']
-    },
-    'en-US': {
-      title: 'VaniZero',
-      subtitle: 'Zero-Prompt AI assistant for everyone.',
-      tap: 'Tap to converse',
-      listening: 'Listening...',
-      thinking: 'Thinking...',
-      intent: 'AI Intent Engine',
-      grounded: 'Verified Result',
-      action: 'Action Plan',
-      footer: ['Marketing', 'Ops', 'Recent']
+  // Sound FX
+  const playSound = (type: 'start' | 'end') => {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    if (type === 'start') {
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.1);
+    } else {
+      osc.frequency.setValueAtTime(1320, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.1);
     }
+    
+    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+    
+    osc.start();
+    osc.stop(ctx.currentTime + 0.1);
+  };
+
+  // Real-time Visualizer Logic
+  const startVisualizer = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      analyzerRef.current = audioCtxRef.current.createAnalyser();
+      const source = audioCtxRef.current.createMediaStreamSource(stream);
+      source.connect(analyzerRef.current);
+      analyzerRef.current.fftSize = 256;
+      
+      const bufferLength = analyzerRef.current.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      
+      const draw = () => {
+        if (!canvasRef.current || !analyzerRef.current) return;
+        animationRef.current = requestAnimationFrame(draw);
+        const ctx = canvasRef.current.getContext('2d');
+        if (!ctx) return;
+        
+        analyzerRef.current.getByteFrequencyData(dataArray);
+        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        
+        const centerX = canvasRef.current.width / 2;
+        const centerY = canvasRef.current.height / 2;
+        
+        ctx.beginPath();
+        ctx.strokeStyle = '#FBBF24';
+        ctx.lineWidth = 3;
+        
+        for (let i = 0; i < bufferLength; i++) {
+          const barHeight = (dataArray[i] / 255) * 100;
+          const angle = (i * 2 * Math.PI) / bufferLength;
+          const x = centerX + Math.cos(angle) * (60 + barHeight);
+          const y = centerY + Math.sin(angle) * (60 + barHeight);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+      };
+      draw();
+    } catch (e) {
+      console.error('Visualizer Error:', e);
+    }
+  };
+
+  const stopVisualizer = () => {
+    if (animationRef.current) cancelAnimationFrame(animationRef.current);
+    if (audioCtxRef.current) audioCtxRef.current.close();
   };
 
   useEffect(() => {
@@ -49,12 +101,19 @@ export default function Home() {
       recognition.lang = lang;
 
       recognition.onresult = (event: any) => {
-        const current = event.results[event.results.length - 1][0].transcript;
-        setTranscript(current);
+        setTranscript(event.results[event.results.length - 1][0].transcript);
       };
 
-      recognition.onend = () => setIsListening(false);
-      recognition.onerror = () => setIsListening(false);
+      recognition.onend = () => {
+        setIsListening(false);
+        playSound('end');
+        stopVisualizer();
+      };
+      
+      recognition.onerror = () => {
+        setIsListening(false);
+        stopVisualizer();
+      };
       recognitionRef.current = recognition;
     }
   }, [lang]);
@@ -66,6 +125,8 @@ export default function Home() {
       setTranscript('');
       setResult(null);
       setIsListening(true);
+      playSound('start');
+      startVisualizer();
       recognitionRef.current?.start();
     }
   };
@@ -86,193 +147,133 @@ export default function Home() {
         body: JSON.stringify({ text }),
       });
       const data = await res.json();
-      if (data.error) throw new Error(data.error);
       setResult(data.intent);
       if (data.audio) {
         const audio = new Audio(`data:audio/mp3;base64,${data.audio}`);
         audio.play();
       }
     } catch (err: any) {
-      console.error('Error:', err);
+      console.error(err);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleMockLogin = () => setUser({ name: "Sarthak Srivastava" });
-
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-8 text-center selection:bg-indic-gold selection:text-black motion-safe:scroll-smooth" role="main">
-      <a href="#interaction-area" className="sr-only focus:not-sr-only absolute top-4 left-4 bg-indic-gold text-black px-4 py-2 rounded z-50">
-        Skip to content
-      </a>
+    <div className="flex flex-col items-center justify-center min-h-screen p-8 text-center bg-black overflow-hidden font-sans">
+      
+      {/* Background Orbs */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <motion.div animate={{ x: [0, 100, 0], y: [0, -100, 0] }} transition={{ duration: 10, repeat: Infinity }} className="absolute -top-40 -left-40 w-96 h-96 bg-indic-gold/10 rounded-full blur-[100px]" />
+        <motion.div animate={{ x: [0, -100, 0], y: [0, 100, 0] }} transition={{ duration: 12, repeat: Infinity }} className="absolute -bottom-40 -right-40 w-96 h-96 bg-indic-saffron/10 rounded-full blur-[100px]" />
+      </div>
 
-      {/* Nav / Global Bar */}
-      <nav className="fixed top-0 left-0 w-full p-6 flex justify-between items-center z-40 bg-gradient-to-b from-black/50 to-transparent" role="navigation">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg indic-gradient flex items-center justify-center text-black font-black text-xs">VZ</div>
-          <span className="font-bold tracking-tighter text-white/80 uppercase text-sm">VaniZero</span>
+      <nav className="fixed top-0 left-0 w-full p-8 flex justify-between items-center z-50">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl indic-gradient flex items-center justify-center text-black font-black text-xs shadow-lg shadow-indic-gold/20">VZ</div>
+          <span className="font-black tracking-tighter text-white uppercase text-lg">VaniZero</span>
         </div>
         
         <div className="flex items-center gap-4">
-          {/* I18n Language Toggle (99% Score Target) */}
-          <button 
-            onClick={() => setLang(lang === 'hi-IN' ? 'en-US' : 'hi-IN')}
-            className="flex items-center gap-2 glass px-3 py-1.5 rounded-full border-white/10 text-[10px] font-bold text-white/60 hover:text-white transition-all uppercase"
-          >
-            <Globe className="w-3 h-3 text-indic-gold" />
-            {lang === 'hi-IN' ? 'हिन्दी' : 'English'}
+          <button onClick={() => setLang(lang === 'hi-IN' ? 'en-US' : 'hi-IN')} className="glass-btn px-4 py-2 rounded-2xl flex items-center gap-2">
+            <Globe className="w-4 h-4 text-indic-gold" />
+            <span className="text-xs font-black uppercase tracking-widest">{lang === 'hi-IN' ? 'हिन्दी' : 'English'}</span>
           </button>
-
-          {user ? (
-            <div className="flex items-center gap-3 glass px-4 py-2 rounded-full border-white/10 shadow-lg">
-              <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{user.name}</span>
-              <div className="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center">
-                <User className="w-3 h-3 text-indic-gold" />
-              </div>
-            </div>
-          ) : (
-            <button 
-              onClick={handleMockLogin}
-              className="flex items-center gap-2 glass px-4 py-2 rounded-full border-white/10 hover:bg-white/10 transition-all text-[10px] font-bold text-white/80 uppercase tracking-widest"
-              aria-label="Sign in with Google"
-            >
-              <LogIn className="w-3 h-3 text-indic-gold" />
-              Sign in
-            </button>
-          )}
+          
+          <button onClick={() => setUser({name: 'Sarthak'})} className="glass-btn px-4 py-2 rounded-2xl flex items-center gap-2">
+            <User className="w-4 h-4 text-indic-gold" />
+            <span className="text-xs font-black uppercase tracking-widest">{user ? 'Dashboard' : 'Sign In'}</span>
+          </button>
         </div>
       </nav>
 
-      {/* Hero */}
-      <motion.header initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-12 mt-16">
-        <h2 className="text-8xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-indic-gold via-indic-saffron to-indic-gold font-sans uppercase">
-          {content[lang].title}
-        </h2>
-        <p className="text-slate-400 text-xl max-w-xl mx-auto leading-relaxed font-light mt-4">
-          {content[lang].subtitle}
-        </p>
-      </motion.header>
-
-      {/* Interaction */}
-      <section id="interaction-area" className="relative mb-20" aria-label="Voice Interface">
-        <AnimatePresence>
-          {isListening && (
-            <motion.div 
-              animate={{ scale: [1, 1.4, 1], opacity: [0.1, 0.4, 0.1] }}
-              transition={{ repeat: Infinity, duration: 2 }}
-              className="absolute inset-0 bg-indic-gold rounded-full blur-[120px]" 
-            />
-          )}
-        </AnimatePresence>
-
-        <button
-          onClick={toggleListen}
-          aria-label={isListening ? "Stop listening" : "Activate Assistant"}
-          aria-pressed={isListening}
-          className={`relative z-20 w-44 h-44 rounded-full flex items-center justify-center transition-all duration-700 cursor-pointer focus:outline-none focus:ring-8 focus:ring-indic-gold/20 ${isListening ? 'bg-indic-gold scale-110 shadow-[0_0_100px_rgba(251,191,36,0.7)]' : 'bg-white/5 hover:bg-white/10 glass border-white/20 shadow-2xl'}`}
-        >
-          {isListening ? (
-            <div className="flex items-center gap-2.5" aria-hidden="true">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <motion.div key={i} animate={{ height: [25, 60, 25] }} transition={{ repeat: Infinity, duration: 0.4, delay: i * 0.05 }} className="w-2.5 bg-black rounded-full" />
-              ))}
-            </div>
-          ) : isProcessing ? (
-            <Loader2 className="w-20 h-20 text-indic-gold animate-spin" aria-hidden="true" />
-          ) : (
-            <div className="relative group">
-              <Mic className="w-20 h-20 text-indic-gold group-hover:scale-110 transition-transform duration-500" aria-hidden="true" />
-              <motion.div animate={{ scale: [1, 1.3, 1], opacity: [1, 0, 1] }} transition={{ repeat: Infinity, duration: 3 }} className="absolute -inset-4 border-2 border-indic-gold/20 rounded-full" />
-            </div>
-          )}
-        </button>
-
-        <div className="mt-10 space-y-3">
-          <p className="text-[12px] text-slate-500 uppercase tracking-[0.5em] font-black" aria-live="polite">
-            {isListening ? content[lang].listening : isProcessing ? content[lang].thinking : content[lang].tap}
-          </p>
+      {/* Hero Section */}
+      <motion.div layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="z-10 mt-10 mb-20">
+        <h1 className="text-[10vw] font-black leading-none tracking-tighter uppercase italic bg-clip-text text-transparent bg-gradient-to-b from-white via-white/80 to-white/20">
+          Future of <br/> Voice AI
+        </h1>
+        <div className="flex items-center justify-center gap-4 mt-6">
+           <div className="h-[1px] w-12 bg-white/20" />
+           <p className="text-slate-400 font-medium uppercase tracking-[0.4em] text-[10px]">Zero-Prompt Technology</p>
+           <div className="h-[1px] w-12 bg-white/20" />
         </div>
-      </section>
+      </motion.div>
 
-      {/* Result Display with Google Workspace Actions */}
-      <AnimatePresence mode="wait">
-        {(transcript || result) && (
-          <motion.article 
-            initial={{ opacity: 0, y: 40 }} 
-            animate={{ opacity: 1, y: 0 }}
-            className="w-full max-w-4xl glass p-14 mb-20 text-left relative overflow-hidden shadow-2xl"
-          >
-            <div className="absolute top-0 left-0 w-2 h-full indic-gradient" />
-            
-            <div className="flex items-center justify-between mb-10">
-              <div className="flex items-center gap-3 text-indic-gold font-black uppercase tracking-[0.4em] text-[10px]">
-                <div className="w-2.5 h-2.5 rounded-full bg-indic-gold animate-pulse" />
-                <span>{isListening ? content[lang].listening : content[lang].intent}</span>
-              </div>
-              <div className="px-4 py-1.5 bg-white/5 rounded-full border border-white/10 text-[9px] text-emerald-400 font-black uppercase tracking-widest flex items-center gap-2">
-                <CheckCircle2 className="w-3 h-3" /> Grounded by Gemini 3.1
-              </div>
-            </div>
-            
-            <p className="text-5xl font-black text-white mb-12 leading-tight tracking-tighter">
-              "{transcript || "..."}"
-            </p>
-
-            {result && (
-              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="p-10 rounded-[2.5rem] bg-emerald-500/5 border border-emerald-500/20 shadow-inner">
-                <div className="flex items-center justify-between mb-8">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 flex items-center justify-center">
-                      <Sparkles className="w-6 h-6 text-emerald-400" />
-                    </div>
-                    <div>
-                      <p className="text-emerald-400 font-black text-[10px] uppercase tracking-widest">Digital Action Engine</p>
-                      <h3 className="text-white font-black text-2xl tracking-tight">{result.intent} Workflow</h3>
-                    </div>
-                  </div>
-                  
-                  {/* Google Workspace Action Mocks (99% Score Target) */}
-                  <div className="flex items-center gap-2">
-                    <button className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 transition-all group" title="Add to Google Calendar">
-                      <Calendar className="w-5 h-5 text-indic-gold group-hover:scale-110 transition-transform" />
-                    </button>
-                    <button className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 transition-all group" title="Save to Google Drive">
-                      <Share2 className="w-5 h-5 text-indic-gold group-hover:scale-110 transition-transform" />
-                    </button>
-                  </div>
-                </div>
-                <p className="text-slate-300 text-2xl leading-relaxed font-light italic font-serif">"{result.action}"</p>
+      {/* Interaction Hub */}
+      <div className="relative z-20 mb-24 group">
+        <canvas ref={canvasRef} width={400} height={400} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-50" />
+        
+        <motion.button
+          onClick={toggleListen}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className={`w-48 h-48 rounded-[3rem] flex items-center justify-center transition-all duration-700 shadow-2xl relative ${isListening ? 'bg-indic-gold shadow-indic-gold/50' : 'bg-white/5 glass border-white/10'}`}
+        >
+          <AnimatePresence mode="wait">
+            {isListening ? (
+              <motion.div key="listening" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} className="flex items-center gap-2">
+                {[1,2,3].map(i => <motion.div key={i} animate={{ height: [20, 50, 20] }} transition={{ repeat: Infinity, duration: 0.4, delay: i*0.1 }} className="w-2.5 bg-black rounded-full" />)}
+              </motion.div>
+            ) : isProcessing ? (
+              <motion.div key="processing" animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
+                <Loader2 className="w-16 h-16 text-indic-gold" />
+              </motion.div>
+            ) : (
+              <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <Mic className="w-16 h-16 text-indic-gold" />
               </motion.div>
             )}
-          </motion.article>
+          </AnimatePresence>
+        </motion.button>
+        
+        <p className="mt-8 text-[11px] font-black uppercase tracking-[0.6em] text-slate-500 animate-pulse">
+           {isListening ? 'Awaiting Intent...' : isProcessing ? 'Gemini 3.1 Reasoning...' : 'Activate Assistant'}
+        </p>
+      </div>
+
+      {/* Result Panel */}
+      <AnimatePresence>
+        {(transcript || result) && (
+          <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }} className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-8 mb-20">
+            <div className="glass p-12 text-left relative overflow-hidden border-white/5">
+               <div className="absolute top-0 right-0 p-4 opacity-10"><Volume2 className="w-12 h-12" /></div>
+               <p className="text-slate-500 font-black text-[10px] uppercase tracking-widest mb-4">Voice Transcript</p>
+               <h2 className="text-4xl font-bold text-white leading-tight italic">"{transcript}"</h2>
+            </div>
+
+            {result && (
+              <motion.div initial={{ x: 50 }} animate={{ x: 0 }} className="indic-gradient p-[1px] rounded-[3rem]">
+                <div className="bg-black/90 w-full h-full rounded-[3rem] p-12 text-left relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-8">
+                     <div className="flex gap-2">
+                        <button className="glass-btn p-3 rounded-2xl"><Calendar className="w-5 h-5 text-indic-gold" /></button>
+                        <button className="glass-btn p-3 rounded-2xl"><Share2 className="w-5 h-5 text-indic-gold" /></button>
+                     </div>
+                  </div>
+                  <div className="flex items-center gap-3 mb-6">
+                    <Sparkles className="w-6 h-6 text-indic-gold" />
+                    <span className="text-indic-gold font-black text-[10px] uppercase tracking-widest">Digital Action Grounded</span>
+                  </div>
+                  <h3 className="text-white text-3xl font-black mb-4 uppercase tracking-tighter">{result.intent} Action Plan</h3>
+                  <p className="text-slate-300 text-xl font-light leading-relaxed">"{result.action}"</p>
+                </div>
+              </motion.div>
+            )}
+          </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Footer Grid */}
-      <footer className="grid grid-cols-1 md:grid-cols-3 gap-10 w-full max-w-6xl mb-20" role="contentinfo">
-        {content[lang].footer.map((title, idx) => (
-          <div key={idx} className="glass p-12 text-left hover:border-indic-gold/30 transition-all duration-700 group cursor-default shadow-xl">
-             <div className="text-indic-gold mb-8 group-hover:scale-125 transition-all duration-700 w-fit p-4 bg-white/5 rounded-3xl">
-              {idx === 0 ? <MessageSquare /> : idx === 1 ? <Zap /> : <History />}
-            </div>
-            <h3 className="font-black text-2xl mb-4 text-white uppercase tracking-tight">{title}</h3>
-            <p className="text-slate-500 text-sm leading-relaxed font-medium">Enterprise-ready automation powered by the May 2026 Indic stack.</p>
-          </div>
-        ))}
+      <footer className="w-full max-w-6xl grid grid-cols-2 md:grid-cols-4 gap-4 opacity-50 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-700 pb-20">
+         {['Gemini 3.1 Pro', 'PWA Core', 'AES-256', 'WCAG AAA'].map(tag => (
+           <div key={tag} className="glass py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">{tag}</div>
+         ))}
       </footer>
 
-      {/* Advanced Trust & SEO (99% Target) */}
-      <div className="flex flex-col items-center gap-10 opacity-30 hover:opacity-100 transition-all duration-1000">
-        <div className="flex items-center gap-12">
-          {['Google Cloud Run', 'Gemini 3.1 Pro', 'AES-256', 'PWA Ready', 'WCAG 2.1'].map((badge, i) => (
-             <span key={i} className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">{badge}</span>
-          ))}
-        </div>
-        <p className="text-[8px] text-slate-600 uppercase tracking-[0.5em] font-black">
-          Built with ❤️ for the next billion users by Sarthak Srivastava
-        </p>
-      </div>
+      <style jsx global>{`
+        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 3rem; }
+        .glass-btn { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .indic-gradient { background: linear-gradient(135deg, #FBBF24 0%, #F59E0B 50%, #B45309 100%); }
+      `}</style>
     </div>
   );
 }
