@@ -46,7 +46,7 @@ export default function RootLayout({
       <body className="bg-black text-white antialiased overflow-x-hidden selection:bg-indic-gold selection:text-black font-sans">
         {/* Modern Grid Background */}
         <div className="fixed inset-0 z-0 bg-[radial-gradient(circle_at_center,_rgba(251,191,36,0.05)_0%,_transparent_70%)] pointer-events-none" />
-        <div className="fixed inset-0 z-0 bg-[url('/grid.svg')] bg-center [mask-image:radial-gradient(white,transparent_85%)] opacity-20 pointer-events-none" />
+        <div className="fixed inset-0 z-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
         
         <main className="relative z-10">
           {children}

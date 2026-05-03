@@ -4,18 +4,23 @@ import type { NextRequest } from 'next/server';
 export function middleware(request: NextRequest) {
   const response = NextResponse.next();
 
-  // 1. SECURITY: Strict CSP and Security Headers at the Edge (99% Target)
+  // 1. SECURITY: GA4 Compatible CSP (99% Score Target)
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'unsafe-eval' 'unsafe-inline' https://www.googletagmanager.com;
+    script-src 'self' 'unsafe-eval' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com;
     style-src 'self' 'unsafe-inline';
-    img-src 'self' blob: data:;
+    img-src 'self' blob: data: https://www.google-analytics.com https://www.googletagmanager.com;
     font-src 'self' data:;
     object-src 'none';
     base-uri 'self';
     form-action 'self';
     frame-ancestors 'none';
-    connect-src 'self' https://api.sarvam.ai https://generativelanguage.googleapis.com;
+    connect-src 'self' 
+      https://api.sarvam.ai 
+      https://generativelanguage.googleapis.com 
+      https://www.google-analytics.com 
+      https://*.google-analytics.com 
+      https://*.analytics.google.com;
     upgrade-insecure-requests;
   `.replace(/\s{2,}/g, ' ').trim();
 

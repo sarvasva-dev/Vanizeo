@@ -2,10 +2,15 @@ import axios from 'axios';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { MODEL_CONFIG, API_ENDPOINTS } from '@/config/constants';
 
+// SECURITY: Server-side API key validation
 const GOOGLE_AI_API_KEY = process.env.GOOGLE_AI_API_KEY; 
 const INDIC_VOICE_KEY = process.env.GOOGLE_GENAI_INDIC_KEY; 
 
-const genAI = new GoogleGenerativeAI(GOOGLE_AI_API_KEY || "");
+if (!GOOGLE_AI_API_KEY) {
+  console.error("CRITICAL: GOOGLE_AI_API_KEY is missing from environment variables.");
+}
+
+const genAI = new GoogleGenerativeAI(GOOGLE_AI_API_KEY || "DUMMY_KEY");
 const model = genAI.getGenerativeModel({ model: MODEL_CONFIG.REASONING_MODEL });
 
 export const indicVoiceClient = axios.create({
@@ -15,6 +20,10 @@ export const indicVoiceClient = axios.create({
 
 export async function processIndicIntent(content: string) {
   try {
+    if (!GOOGLE_AI_API_KEY || GOOGLE_AI_API_KEY === "DUMMY_KEY") {
+       throw new Error("API Key Configuration Missing");
+    }
+
     const prompt = `
       System: You are VaniZero, an Indic Frontier Agent.
       User Input: "${content}"
@@ -26,22 +35,24 @@ export async function processIndicIntent(content: string) {
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
     
-    // Advanced JSON Extraction Logic
+    // EXTREME JSON Extraction Logic (Handling conversational junk)
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    const cleaned = jsonMatch ? jsonMatch[0] : responseText;
+    if (!jsonMatch) throw new Error("No JSON found in response");
     
-    return JSON.parse(cleaned);
+    return JSON.parse(jsonMatch[0]);
   } catch (error: any) {
-    console.error('Gemini Reasoning Error:', error.message);
+    console.error('Gemini Execution Error:', error.message);
+    // Return a structured error response that the UI can still handle
     return { 
       intent: "Operations", 
-      action: "Main aapka request process kar raha hoon. Please try again in a moment." 
+      action: `Main aapka request abhi process nahi kar pa raha hoon. Error: ${error.message}`
     };
   }
 }
 
 export async function speakResponse(text: string) {
   try {
+    if (!INDIC_VOICE_KEY) throw new Error("Voice Key Missing");
     const response = await indicVoiceClient.post('/text-to-speech', {
       inputs: [text],
       target_language_code: 'hi-IN', 
