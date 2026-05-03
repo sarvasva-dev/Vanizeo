@@ -10,7 +10,11 @@ export const useVisualizer = (isListening: boolean) => {
   const startVisualizer = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audioCtxRef.current = new AudioContext();
+      // Create Context only if it doesn't exist or is closed
+      if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
+        audioCtxRef.current = new AudioContext();
+      }
+      
       analyzerRef.current = audioCtxRef.current.createAnalyser();
       const source = audioCtxRef.current.createMediaStreamSource(stream);
       source.connect(analyzerRef.current);
@@ -46,14 +50,18 @@ export const useVisualizer = (isListening: boolean) => {
         ctx.stroke();
       };
       draw();
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error('Visualizer Start Error:', e); }
   };
 
   const stopVisualizer = () => {
-    if (animationRef.current) cancelAnimationFrame(animationRef.current);
-    // SAFE CLOSE: Prevents "Cannot close a closed AudioContext"
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
+    }
+    // Bulletproof AudioContext Closure
     if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
-      audioCtxRef.current.close().catch(console.warn);
+      audioCtxRef.current.close().catch(() => {});
+      audioCtxRef.current = null;
     }
   };
 

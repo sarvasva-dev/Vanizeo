@@ -15,13 +15,28 @@ export const indicVoiceClient = axios.create({
 
 export async function processIndicIntent(content: string) {
   try {
-    const prompt = `System: VaniZero Grounded Action Engine. Intent Analysis: "${content}"`;
+    const prompt = `
+      System: You are VaniZero, an Indic Frontier Agent.
+      User Input: "${content}"
+      Task: Analyze the user's intent and generate a grounded digital action plan.
+      Output Format: Strictly JSON.
+      Structure: { "intent": "Category", "action": "A descriptive, professional action plan in Hinglish" }
+    `;
+    
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
-    const cleaned = responseText.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
+    
+    // Advanced JSON Extraction Logic
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    const cleaned = jsonMatch ? jsonMatch[0] : responseText;
+    
     return JSON.parse(cleaned);
-  } catch (error) {
-    return { intent: "General", action: "Processing intent..." };
+  } catch (error: any) {
+    console.error('Gemini Reasoning Error:', error.message);
+    return { 
+      intent: "Operations", 
+      action: "Main aapka request process kar raha hoon. Please try again in a moment." 
+    };
   }
 }
 
