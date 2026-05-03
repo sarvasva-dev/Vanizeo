@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { processIndicIntent, speakResponse } from '@/lib/google-indic';
+import { processIndicIntent, speakResponse } from '@/services/indic.engine';
 
 // SECURITY: Zod Schema for strict API validation (99% Score Target)
 const RequestSchema = z.object({
