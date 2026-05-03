@@ -5,53 +5,58 @@ import { MODEL_CONFIG, API_ENDPOINTS } from '@/config/constants';
 const GOOGLE_AI_API_KEY = process.env.GOOGLE_AI_API_KEY; 
 const INDIC_VOICE_KEY = process.env.GOOGLE_GENAI_INDIC_KEY; 
 
-// 1. INTEL ENGINE: Gemini 3 Flash Preview (Empirically Verified)
-const genAI = new GoogleGenerativeAI(GOOGLE_AI_API_KEY || "");
-const model = genAI.getGenerativeModel({ model: MODEL_CONFIG.REASONING_MODEL });
-
-// 2. VOICE ENGINE: Sarvam Bulbul V3
 export const sarvamClient = axios.create({
   baseURL: API_ENDPOINTS.SARVAM_BASE,
   headers: { 'api-subscription-key': INDIC_VOICE_KEY },
 });
 
-export async function processIndicIntent(content: string) {
-  try {
-    if (!GOOGLE_AI_API_KEY) throw new Error("Missing GOOGLE_AI_API_KEY");
+const genAI = new GoogleGenerativeAI(GOOGLE_AI_API_KEY || "");
+const fallbackModel = genAI.getGenerativeModel({ model: MODEL_CONFIG.REASONING_MODEL });
 
-    const systemPrompt = `
-      System: You are VaniZero, an elite Indic Frontier Agent powered by Gemini 3.
-      User Input: "${content}"
-      Task: Analyze intent and generate a professional action plan in Hinglish.
-      Output: Strictly JSON: { "intent": "Category", "action": "Professional Hinglish Action Plan" }
-    `;
-    
-    const result = await model.generateContent(systemPrompt);
-    const responseText = result.response.text();
-    
-    // Surgical JSON Extraction
+export async function processIndicIntent(content: string) {
+  const systemPrompt = `
+    System: You are VaniZero, a high-performance Indic Agent.
+    User input: "${content}"
+    Task: Extract intent and generate a professional Hinglish action plan.
+    Output: Strictly JSON format: { "intent": "Category", "action": "Professional Action Plan in Hinglish" }
+  `;
+
+  try {
+    // 1. PRIMARY: Sarvam MoE Chat API (May 2026 Flagship)
+    const sarvamRes = await sarvamClient.post('/v1/chat/completions', {
+      model: "sarvam-30b", // Flagship 2026 Model
+      messages: [
+        { role: "system", content: "You are a helpful assistant that outputs strictly JSON." },
+        { role: "user", content: systemPrompt }
+      ]
+    });
+
+    const responseText = sarvamRes.data.choices[0].message.content;
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    const cleaned = jsonMatch ? jsonMatch[0] : responseText;
-    
-    return JSON.parse(cleaned);
+    return JSON.parse(jsonMatch ? jsonMatch[0] : responseText);
+
   } catch (error: any) {
-    console.error('Gemini 3 Reasoning Error:', error.message);
-    return { 
-      intent: "System", 
-      action: `Main aapka request process nahi kar pa raha hoon. Model: ${MODEL_CONFIG.REASONING_MODEL}. Error: ${error.message}`
-    };
+    console.warn('Sarvam Brain failed, falling back to Gemini...', error.message);
+    try {
+      const result = await fallbackModel.generateContent(systemPrompt);
+      const text = result.response.text();
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      return JSON.parse(jsonMatch ? jsonMatch[0] : text);
+    } catch (fError) {
+      return { intent: "Ops", action: "Processing error. Please try again." };
+    }
   }
 }
 
 export async function speakResponse(text: string) {
   try {
-    if (!INDIC_VOICE_KEY) throw new Error("Missing Sarvam Key");
     const response = await sarvamClient.post('/text-to-speech', {
       inputs: [text],
       target_language_code: 'hi-IN', 
       speaker: 'meera', 
       model: MODEL_CONFIG.TTS_MODEL,
     });
-    return response.data;
+    // Return only the raw base64 content
+    return response.data.audio_content;
   } catch (error) { throw error; }
 }

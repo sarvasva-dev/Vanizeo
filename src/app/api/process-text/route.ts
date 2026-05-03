@@ -28,8 +28,7 @@ export async function POST(req: NextRequest) {
     // 3. VOICE FEEDBACK (Bulbul V3)
     let audioData = null;
     try {
-        const ttsResult = await speakResponse(`Theek hai, main aapka ${intentResult.intent} task kar raha hoon.`);
-        audioData = ttsResult.audios[0];
+        audioData = await speakResponse(intentResult.action);
     } catch (ttsErr) {
         console.warn('TTS Feedback suppressed');
     }
