@@ -5,7 +5,7 @@ import { MODEL_CONFIG, API_ENDPOINTS } from '@/config/constants';
 const GOOGLE_AI_API_KEY = process.env.GOOGLE_AI_API_KEY; 
 const INDIC_VOICE_KEY = process.env.GOOGLE_GENAI_INDIC_KEY; 
 
-// 1. INTEL ENGINE: Gemini 3 Flash (May 2026 Frontier)
+// 1. INTEL ENGINE: Gemini 3 Flash Preview (Empirically Verified)
 const genAI = new GoogleGenerativeAI(GOOGLE_AI_API_KEY || "");
 const model = genAI.getGenerativeModel({ model: MODEL_CONFIG.REASONING_MODEL });
 
@@ -26,11 +26,10 @@ export async function processIndicIntent(content: string) {
       Output: Strictly JSON: { "intent": "Category", "action": "Professional Hinglish Action Plan" }
     `;
     
-    // Using the Gemini 3 Flash generateContent interface
     const result = await model.generateContent(systemPrompt);
     const responseText = result.response.text();
     
-    // Enhanced JSON Extraction for Gemini 3
+    // Surgical JSON Extraction
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     const cleaned = jsonMatch ? jsonMatch[0] : responseText;
     
