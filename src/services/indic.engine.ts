@@ -5,7 +5,7 @@ import { MODEL_CONFIG, API_ENDPOINTS } from '@/config/constants';
 const GOOGLE_AI_API_KEY = process.env.GOOGLE_AI_API_KEY; 
 const INDIC_VOICE_KEY = process.env.GOOGLE_GENAI_INDIC_KEY; 
 
-// 1. INTEL ENGINE: Gemini 1.5 Flash (Verified Free Tier)
+// 1. INTEL ENGINE: Gemini 3 Flash (May 2026 Frontier)
 const genAI = new GoogleGenerativeAI(GOOGLE_AI_API_KEY || "");
 const model = genAI.getGenerativeModel({ model: MODEL_CONFIG.REASONING_MODEL });
 
@@ -17,30 +17,36 @@ export const sarvamClient = axios.create({
 
 export async function processIndicIntent(content: string) {
   try {
+    if (!GOOGLE_AI_API_KEY) throw new Error("Missing GOOGLE_AI_API_KEY");
+
     const systemPrompt = `
-      System: You are VaniZero, an Indic Frontier Agent.
+      System: You are VaniZero, an elite Indic Frontier Agent powered by Gemini 3.
       User Input: "${content}"
       Task: Analyze intent and generate a professional action plan in Hinglish.
       Output: Strictly JSON: { "intent": "Category", "action": "Professional Hinglish Action Plan" }
     `;
     
+    // Using the Gemini 3 Flash generateContent interface
     const result = await model.generateContent(systemPrompt);
     const responseText = result.response.text();
+    
+    // Enhanced JSON Extraction for Gemini 3
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     const cleaned = jsonMatch ? jsonMatch[0] : responseText;
     
     return JSON.parse(cleaned);
   } catch (error: any) {
-    console.error('Intelligence Engine Error:', error.message);
+    console.error('Gemini 3 Reasoning Error:', error.message);
     return { 
-      intent: "Operations", 
-      action: `Main aapka request process nahi kar pa raha hoon. Error: ${error.message}`
+      intent: "System", 
+      action: `Main aapka request process nahi kar pa raha hoon. Model: ${MODEL_CONFIG.REASONING_MODEL}. Error: ${error.message}`
     };
   }
 }
 
 export async function speakResponse(text: string) {
   try {
+    if (!INDIC_VOICE_KEY) throw new Error("Missing Sarvam Key");
     const response = await sarvamClient.post('/text-to-speech', {
       inputs: [text],
       target_language_code: 'hi-IN', 
