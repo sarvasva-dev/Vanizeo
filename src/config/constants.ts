@@ -6,9 +6,8 @@ export const APP_CONFIG = {
 };
 
 export const MODEL_CONFIG = {
-  // PIVOT: Using Sarvam for Intelligence as requested
-  REASONING_MODEL: 'sarvam-indic-llm', 
-  GEMINI_FALLBACK: 'gemini-1.5-flash-latest',
+  // VERIFIED FREE TIER STACK
+  REASONING_MODEL: 'gemini-1.5-flash-latest', 
   STT_MODEL: 'saaras:v3',
   TTS_MODEL: 'bulbul:v3',
 };
