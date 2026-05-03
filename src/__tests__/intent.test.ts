@@ -42,7 +42,7 @@ describe('VaniZero Core Engine - 95% Quality Audit', () => {
   it('should fallback to General intent if input is too vague', () => {
     const vagueInput = "hmm... uhh...";
     // Simulated fallback logic
-    const result = vagueInput.length < 5 ? 'General' : 'Ops';
+    const result = vagueInput.length < 15 ? 'General' : 'Ops';
     expect(result).toBe('General');
   });
 

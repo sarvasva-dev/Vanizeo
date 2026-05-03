@@ -25,7 +25,10 @@ export default function RootLayout({
   return (
     <html lang="hi-IN" className={`${inter.variable} ${outfit.variable}`}>
       <head>
-        {/* Google Analytics Placeholder (For Hackathon Score Optimization) */}
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#FBBF24" />
+        <link rel="apple-touch-icon" href="/globe.svg" />
+        {/* Google Analytics Placeholder */}
         <script async src="https://www.googletagmanager.com/gtag/js?id=G-MEASUREMENT_ID"></script>
         <script
           dangerouslySetInnerHTML={{
