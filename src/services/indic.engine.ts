@@ -2,58 +2,62 @@ import axios from 'axios';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { MODEL_CONFIG, API_ENDPOINTS } from '@/config/constants';
 
-// SECURITY: Server-side API key validation
 const GOOGLE_AI_API_KEY = process.env.GOOGLE_AI_API_KEY; 
 const INDIC_VOICE_KEY = process.env.GOOGLE_GENAI_INDIC_KEY; 
 
-if (!GOOGLE_AI_API_KEY) {
-  console.error("CRITICAL: GOOGLE_AI_API_KEY is missing from environment variables.");
-}
-
-const genAI = new GoogleGenerativeAI(GOOGLE_AI_API_KEY || "DUMMY_KEY");
-const model = genAI.getGenerativeModel({ model: MODEL_CONFIG.REASONING_MODEL });
-
-export const indicVoiceClient = axios.create({
+// 1. SARVAM FIRST: High-performance Indic Reasoning
+export const sarvamClient = axios.create({
   baseURL: API_ENDPOINTS.SARVAM_BASE,
   headers: { 'api-subscription-key': INDIC_VOICE_KEY },
 });
 
-export async function processIndicIntent(content: string) {
-  try {
-    if (!GOOGLE_AI_API_KEY || GOOGLE_AI_API_KEY === "DUMMY_KEY") {
-       throw new Error("API Key Configuration Missing");
-    }
+// 2. GEMINI FALLBACK: Only if Sarvam is unavailable
+const genAI = new GoogleGenerativeAI(GOOGLE_AI_API_KEY || "DUMMY");
+const fallbackModel = genAI.getGenerativeModel({ model: MODEL_CONFIG.GEMINI_FALLBACK });
 
-    const prompt = `
-      System: You are VaniZero, an Indic Frontier Agent.
-      User Input: "${content}"
-      Task: Analyze the user's intent and generate a grounded digital action plan.
-      Output Format: Strictly JSON.
-      Structure: { "intent": "Category", "action": "A descriptive, professional action plan in Hinglish" }
-    `;
-    
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
-    
-    // EXTREME JSON Extraction Logic (Handling conversational junk)
+export async function processIndicIntent(content: string) {
+  const systemPrompt = `
+    You are VaniZero, an elite Indic Frontier Agent.
+    User input: "${content}"
+    Task: Extract intent and create a professional digital action plan in Hinglish.
+    Output: Strictly JSON format: { "intent": "Category", "action": "Action in Hinglish" }
+  `;
+
+  try {
+    // PRIMARY: Sarvam Indic LLM (As requested)
+    const sarvamRes = await sarvamClient.post('/v1/chat/completions', {
+      model: "sarvam-1-llama-3-8b",
+      messages: [
+        { role: "system", content: "You are a helpful assistant that outputs strictly JSON." },
+        { role: "user", content: systemPrompt }
+      ]
+    });
+
+    const responseText = sarvamRes.data.choices[0].message.content;
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("No JSON found in response");
-    
-    return JSON.parse(jsonMatch[0]);
+    return JSON.parse(jsonMatch ? jsonMatch[0] : responseText);
+
   } catch (error: any) {
-    console.error('Gemini Execution Error:', error.message);
-    // Return a structured error response that the UI can still handle
-    return { 
-      intent: "Operations", 
-      action: `Main aapka request abhi process nahi kar pa raha hoon. Error: ${error.message}`
-    };
+    console.warn('Sarvam Reasoning failed, falling back to Gemini...', error.message);
+    
+    try {
+      // SECONDARY: Gemini 1.5 Flash (Free Tier King)
+      const result = await fallbackModel.generateContent(systemPrompt);
+      const text = result.response.text();
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      return JSON.parse(jsonMatch ? jsonMatch[0] : text);
+    } catch (fallbackError) {
+      return { 
+        intent: "Operations", 
+        action: "Main aapka request abhi process nahi kar pa raha hoon. Connection check kijiye." 
+      };
+    }
   }
 }
 
 export async function speakResponse(text: string) {
   try {
-    if (!INDIC_VOICE_KEY) throw new Error("Voice Key Missing");
-    const response = await indicVoiceClient.post('/text-to-speech', {
+    const response = await sarvamClient.post('/text-to-speech', {
       inputs: [text],
       target_language_code: 'hi-IN', 
       speaker: 'meera', 
