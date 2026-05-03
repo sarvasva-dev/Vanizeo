@@ -51,7 +51,10 @@ export const useVisualizer = (isListening: boolean) => {
 
   const stopVisualizer = () => {
     if (animationRef.current) cancelAnimationFrame(animationRef.current);
-    if (audioCtxRef.current) audioCtxRef.current.close();
+    // SAFE CLOSE: Prevents "Cannot close a closed AudioContext"
+    if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+      audioCtxRef.current.close().catch(console.warn);
+    }
   };
 
   useEffect(() => {

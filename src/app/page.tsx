@@ -45,7 +45,11 @@ export default function Home() {
     setIsProcessing(true);
     try {
       const data = await AIService.processIntent(text);
-      setResult(data);
+      setResult(data.intent);
+      if (data.audio) {
+        const audio = new Audio(`data:audio/mp3;base64,${data.audio}`);
+        audio.play();
+      }
     } catch (err) { console.error(err); }
     finally { setIsProcessing(false); }
   };
