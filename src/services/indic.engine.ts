@@ -22,9 +22,8 @@ export async function processIndicIntent(content: string) {
   `;
 
   try {
-    // 1. PRIMARY: Sarvam MoE Chat API (May 2026 Flagship)
     const sarvamRes = await sarvamClient.post('/v1/chat/completions', {
-      model: "sarvam-30b", // Flagship 2026 Model
+      model: "sarvam-30b",
       messages: [
         { role: "system", content: "You are a helpful assistant that outputs strictly JSON." },
         { role: "user", content: systemPrompt }
@@ -56,7 +55,10 @@ export async function speakResponse(text: string) {
       speaker: 'meera', 
       model: MODEL_CONFIG.TTS_MODEL,
     });
-    // Return only the raw base64 content
-    return response.data.audio_content;
+    // FIXED: Sarvam returns an array named 'audios'
+    if (response.data && response.data.audios && response.data.audios.length > 0) {
+      return response.data.audios[0];
+    }
+    throw new Error("No audio content in response");
   } catch (error) { throw error; }
 }

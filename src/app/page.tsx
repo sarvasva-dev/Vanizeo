@@ -47,8 +47,8 @@ export default function Home() {
       const data = await AIService.processIntent(text);
       setResult(data.intent);
       if (data.audio) {
-        const audio = new Audio(`data:audio/mp3;base64,${data.audio}`);
-        audio.play();
+        const audio = new Audio(`data:audio/wav;base64,${data.audio}`);
+        audio.play().catch(e => console.error("Audio Play Error:", e));
       }
     } catch (err) { console.error(err); }
     finally { setIsProcessing(false); }
