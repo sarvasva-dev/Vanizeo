@@ -22,7 +22,6 @@ export async function processIndicIntent(content: string) {
   `;
 
   try {
-    // 1. PRIMARY: Sarvam Chat Completion API (OpenAI Compatible)
     const sarvamRes = await sarvamClient.post('/v1/chat/completions', {
       model: "sarvam-30b",
       messages: [
@@ -50,15 +49,14 @@ export async function processIndicIntent(content: string) {
 
 export async function speakResponse(text: string) {
   try {
-    // FIXED: Documentation Audit reveals 'text' parameter replaces 'inputs'
+    // FIXED: API diagnostic confirmed 'meera' is invalid. Switching to verified 'ritu' voice.
     const response = await sarvamClient.post('/text-to-speech', {
-      text: text, // CORRECT PARAMETER for May 2026
-      speaker: 'meera', 
+      text: text,
+      speaker: 'ritu', // Verified ID from Sarvam API response
       model: 'bulbul:v3',
       target_language_code: 'hi-IN'
     });
     
-    // Bulbul v3 returns raw base64 in 'audios[0]' or 'audio_content'
     if (response.data.audios) return response.data.audios[0];
     return response.data.audio_content;
   } catch (error: any) { 
