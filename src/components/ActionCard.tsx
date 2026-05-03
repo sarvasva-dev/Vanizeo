@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Calendar, Share2 } from 'lucide-react';
+import { Heart, Calendar, Share2 } from 'lucide-react';
 
 interface ActionCardProps {
   intent: string;
@@ -26,13 +26,13 @@ export const ActionCard: React.FC<ActionCardProps> = ({ intent, action }) => {
           </button>
         </div>
         <div className="flex items-center gap-3 mb-6">
-          <Sparkles className="w-6 h-6 text-indic-gold animate-pulse" />
+          <Heart className="w-6 h-6 text-indic-gold fill-current animate-pulse" />
           <span className="text-indic-gold font-black text-[10px] uppercase tracking-[0.3em]">
-            Digital Action Grounded
+            Dil Ki Baat
           </span>
         </div>
         <h3 className="text-white text-3xl font-black mb-4 uppercase tracking-tighter">
-          {intent} Strategy
+          {intent === 'Feeling' ? 'Humari Baatein' : intent}
         </h3>
         <p className="text-slate-300 text-xl font-light leading-relaxed italic">
           "{action}"

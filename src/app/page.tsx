@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Mic, Zap, MessageSquare, History, Loader2, User, Globe, Volume2 } from 'lucide-react';
+import { Mic, Zap, MessageSquare, History, Loader2, User, Globe, Volume2, Heart } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Visualizer } from '@/components/Visualizer';
 import { ActionCard } from '@/components/ActionCard';
@@ -125,9 +125,6 @@ export default function Home() {
         {(transcript || result) && (
           <motion.div initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }} className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-8 mb-20 px-4">
             <div className="bg-white/5 backdrop-blur-3xl border border-white/10 p-14 text-left rounded-bento relative overflow-hidden group">
-               <div className="absolute -top-10 -right-10 opacity-5 group-hover:opacity-10 transition-opacity duration-1000">
-                  <Volume2 className="w-48 h-48 text-white" />
-               </div>
                <p className="text-slate-600 font-black text-[10px] uppercase tracking-widest mb-6">Live Transcript</p>
                <h2 className="text-5xl font-black text-white leading-tight tracking-tighter italic">"{transcript}"</h2>
             </div>

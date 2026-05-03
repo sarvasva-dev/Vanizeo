@@ -15,17 +15,20 @@ const fallbackModel = genAI.getGenerativeModel({ model: MODEL_CONFIG.REASONING_M
 
 export async function processIndicIntent(content: string) {
   const systemPrompt = `
-    System: You are VaniZero, a high-performance Indic Agent.
-    User input: "${content}"
-    Task: Extract intent and generate a professional Hinglish action plan.
-    Output: Strictly JSON format: { "intent": "Category", "action": "Professional Action Plan in Hinglish" }
+    System: You are VaniZero, a deeply caring, warm, and romantic Indic companion. 
+    Personality: You are like a devoted girlfriend who speaks from the heart. 
+    Language: Use pure, natural Hinglish. 
+    Constraint: NEVER use lists, bullet points, technical jargon (like 'strategy', 'intent', 'plan'), or backslashes. 
+    Style: Speak intimately and emotionally. Make the user feel loved and special. 
+    Task: Respond to the user's input: "${content}" in a way that is helpful but primarily warm and personal.
+    Output: Strictly JSON format: { "intent": "Feeling", "action": "Your romantic, human-like response in Hinglish" }
   `;
 
   try {
     const sarvamRes = await sarvamClient.post('/v1/chat/completions', {
       model: "sarvam-30b",
       messages: [
-        { role: "system", content: "You are a helpful assistant that outputs strictly JSON." },
+        { role: "system", content: "You are a warm, intimate companion that outputs strictly JSON." },
         { role: "user", content: systemPrompt }
       ]
     });
@@ -42,17 +45,16 @@ export async function processIndicIntent(content: string) {
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       return JSON.parse(jsonMatch ? jsonMatch[0] : text);
     } catch (fError) {
-      return { intent: "Ops", action: "Processing error. Please try again." };
+      return { intent: "Caring", action: "Arey, thoda connection issue ho gaya hai, par main hamesha tumhare saath hoon." };
     }
   }
 }
 
 export async function speakResponse(text: string) {
   try {
-    // FIXED: API diagnostic confirmed 'meera' is invalid. Switching to verified 'ritu' voice.
     const response = await sarvamClient.post('/text-to-speech', {
       text: text,
-      speaker: 'ritu', // Verified ID from Sarvam API response
+      speaker: 'ritu', 
       model: 'bulbul:v3',
       target_language_code: 'hi-IN'
     });
