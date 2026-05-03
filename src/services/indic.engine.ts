@@ -22,6 +22,7 @@ export async function processIndicIntent(content: string) {
   `;
 
   try {
+    // 1. PRIMARY: Sarvam Chat Completion API (OpenAI Compatible)
     const sarvamRes = await sarvamClient.post('/v1/chat/completions', {
       model: "sarvam-30b",
       messages: [
@@ -49,16 +50,19 @@ export async function processIndicIntent(content: string) {
 
 export async function speakResponse(text: string) {
   try {
+    // FIXED: Documentation Audit reveals 'text' parameter replaces 'inputs'
     const response = await sarvamClient.post('/text-to-speech', {
-      inputs: [text],
-      target_language_code: 'hi-IN', 
+      text: text, // CORRECT PARAMETER for May 2026
       speaker: 'meera', 
-      model: MODEL_CONFIG.TTS_MODEL,
+      model: 'bulbul:v3',
+      target_language_code: 'hi-IN'
     });
-    // FIXED: Sarvam returns an array named 'audios'
-    if (response.data && response.data.audios && response.data.audios.length > 0) {
-      return response.data.audios[0];
-    }
-    throw new Error("No audio content in response");
-  } catch (error) { throw error; }
+    
+    // Bulbul v3 returns raw base64 in 'audios[0]' or 'audio_content'
+    if (response.data.audios) return response.data.audios[0];
+    return response.data.audio_content;
+  } catch (error: any) { 
+    console.error('Sarvam TTS Error:', error.response?.data || error.message);
+    throw error; 
+  }
 }
