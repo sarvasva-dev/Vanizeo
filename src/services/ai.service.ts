@@ -7,8 +7,13 @@ export const ActionSchema = z.object({
 
 export type ActionPlan = z.infer<typeof ActionSchema>;
 
+export interface ActionResponse {
+  intent: ActionPlan;
+  audio: string | null;
+}
+
 export class AIService {
-  static async processIntent(text: string): Promise<ActionPlan> {
+  static async processIntent(text: string): Promise<ActionResponse> {
     const res = await fetch('/api/process-text', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
